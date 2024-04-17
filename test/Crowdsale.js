@@ -2,6 +2,7 @@ const {
   loadFixture,
 } = require('@nomicfoundation/hardhat-toolbox/network-helpers');
 const { expect } = require('chai');
+const { ethers } = require('hardhat');
 
 describe('Crowdsale contract', function () {
   async function deployCrowdsaleFixture() {
@@ -147,6 +148,85 @@ describe('Crowdsale contract', function () {
       let result = await tx.wait();
 
       expect(await ddsToken.balanceOf(addr1)).to.equal('10000000000000000000');
+    });
+  });
+
+  describe('Update price', function () {
+    let price = ethers.parseEther('2');
+    it('Should transfers remaining tokens to owner', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+      let tx = await crowdsale.setPrice(price);
+      await tx.wait();
+
+      expect(await crowdsale.price()).to.equal(ethers.parseEther('2'));
+    });
+
+    it('Should prevents non-owner from updating the price', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+      await expect(crowdsale.connect(addr1).setPrice(price)).to.be.reverted;
+    });
+  });
+
+  describe('Finalizing the sale', function () {
+    it('Should transfers remaining tokens to owner', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+      let tx = await crowdsale
+        .connect(addr1)
+        .buyTokens('10000000000000000000', { value: ethers.parseEther('10') });
+      let result = await tx.wait();
+
+      tx = await crowdsale.finalize();
+      result = await tx.wait();
+      expect(await ddsToken.balanceOf(crowdsale.target)).to.equal('0');
+      expect(await ddsToken.balanceOf(owner)).to.equal(
+        '999990000000000000000000'
+      );
+    });
+
+    it('Should transfers ETH balance to owner', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+      let tx = await crowdsale
+        .connect(addr1)
+        .buyTokens('10000000000000000000', { value: ethers.parseEther('10') });
+      let result = await tx.wait();
+
+      tx = await crowdsale.finalize();
+      result = await tx.wait();
+      expect(await ethers.provider.getBalance(crowdsale.target)).to.equal('0');
+    });
+
+    it('Should emit a finalize event', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+      let tx = await crowdsale
+        .connect(addr1)
+        .buyTokens('10000000000000000000', { value: ethers.parseEther('10') });
+      let result = await tx.wait();
+
+      await expect(crowdsale.finalize())
+        .to.emit(crowdsale, 'Finalize')
+        .withArgs('10000000000000000000', ethers.parseEther('10'));
+    });
+
+    it('Should prevents non-owner from finalizing', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+      let tx = await crowdsale
+        .connect(addr1)
+        .buyTokens('10000000000000000000', { value: ethers.parseEther('10') });
+      let result = await tx.wait();
+
+      await expect(crowdsale.connect(addr1).finalize()).to.be.reverted;
     });
   });
 });
