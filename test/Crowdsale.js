@@ -117,4 +117,36 @@ describe('Crowdsale contract', function () {
         .withArgs('10000000000000000000', addr1.address);
     });
   });
+
+  describe('Sending ETH', function () {
+    it('Should update the contract ether balance', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+
+      let tx = await addr1.sendTransaction({
+        to: crowdsale.target,
+        value: '10000000000000000000',
+      });
+      let result = await tx.wait();
+
+      expect(await ethers.provider.getBalance(crowdsale.target)).to.equal(
+        '10000000000000000000'
+      );
+    });
+
+    it('Should update user token balance', async function () {
+      const { crowdsale, ddsToken, owner, addr1 } = await loadFixture(
+        deployCrowdsaleFixture
+      );
+
+      let tx = await addr1.sendTransaction({
+        to: crowdsale.target,
+        value: '10000000000000000000',
+      });
+      let result = await tx.wait();
+
+      expect(await ddsToken.balanceOf(addr1)).to.equal('10000000000000000000');
+    });
+  });
 });
