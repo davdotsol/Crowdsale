@@ -4,17 +4,19 @@ pragma solidity 0.8.24;
 import "hardhat/console.sol";
 import "./Token.sol";
 
-// Crowdsale contract for managing the sale of ERC-20 tokens
+// Crowdsale contract for managing the sale of ERC-20 tokens with whitelisting
 contract Crowdsale {
     address public owner;
     Token public token;
     uint256 public price;
     uint256 public maxTokens;
     uint256 public tokensSold;
+    mapping(address => bool) public whitelisted;
 
-    // Events for logging buys and finalization actions
+    // Events for logging buys, finalization actions, and whitelisting
     event Buy(uint256 amount, address buyer);
     event Finalize(uint256 tokensSold, uint256 ethRaised);
+    event Whitelisted(address user);
 
     // Set up the Crowdsale with a reference to the ERC-20 Token contract and initial sale parameters
     constructor(Token _token, uint256 _price, uint256 _maxTokens) {
@@ -30,14 +32,20 @@ contract Crowdsale {
         _;
     }
 
+    // Modifier to check if the caller is whitelisted
+    modifier onlyWhitelisted() {
+        require(whitelisted[msg.sender], "Caller is not whitelisted");
+        _;
+    }
+
     // Fallback function to handle ETH sent directly to the contract
-    receive() external payable {
+    receive() external payable onlyWhitelisted {
         uint256 amount = (msg.value / price) * 1e18; // Convert ETH to token amount
         buyTokens(amount);
     }
 
-    // Public function to buy tokens
-    function buyTokens(uint256 _amount) public payable {
+    // Public function to buy tokens, restricted to whitelisted addresses
+    function buyTokens(uint256 _amount) public payable onlyWhitelisted {
         require(
             msg.value == (_amount / 1e18) * price,
             "Ether value sent is not correct"
@@ -64,6 +72,12 @@ contract Crowdsale {
     // Admin function to adjust the token price
     function setPrice(uint256 _price) public onlyOwner {
         price = _price;
+    }
+
+    // Function to add an address to the whitelist, callable only by the owner
+    function addToWhitelist(address _user) public onlyOwner {
+        whitelisted[_user] = true;
+        emit Whitelisted(_user);
     }
 
     // Finalizes the crowdsale, can only be called by the owner
