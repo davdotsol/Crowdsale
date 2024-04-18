@@ -13,7 +13,7 @@ describe('Crowdsale contract', function () {
     const [owner, addr1, addr2] = await ethers.getSigners();
 
     const Token = await ethers.getContractFactory('Token');
-    const ddsToken = await Token.deploy('Dapp Dot Sol', 'DDS', 1000000);
+    const ddsToken = await Token.deploy('Dapp Dot Sol', 'DDS', '1000000');
 
     await ddsToken.waitForDeployment();
 
@@ -21,7 +21,7 @@ describe('Crowdsale contract', function () {
     const crowdsale = await Crowdsale.deploy(
       ddsToken.target,
       ethers.parseEther('1'),
-      ethers.parseUnits('1000000', 18)
+      '1000000'
     );
 
     await crowdsale.waitForDeployment();
