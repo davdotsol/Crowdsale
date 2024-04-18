@@ -9,6 +9,7 @@ import CROWDSALE_ABI from './abis/Crowdsale.json';
 import config from './config.json';
 import Loading from './components/Loading';
 import Progress from './components/Progress';
+import Buy from './components/Buy';
 
 function App() {
   const [account, setAccount] = useState(null);
@@ -24,13 +25,15 @@ function App() {
     const provider = new ethers.BrowserProvider(window.ethereum);
     setProvider(provider);
 
+    const { chainId } = await provider.getNetwork();
+
     const token = new ethers.Contract(
-      config['31337'].token.address,
+      config[chainId].token.address,
       TOKEN_ABI,
       provider
     );
     const crowdsale = new ethers.Contract(
-      config['31337'].crowdsale.address,
+      config[chainId].crowdsale.address,
       CROWDSALE_ABI,
       provider
     );
@@ -52,7 +55,7 @@ function App() {
     const price = ethers.formatUnits(await crowdsale.price(), 18);
     setPrice(price);
 
-    const maxTokens = ethers.formatUnits(await crowdsale.maxToken(), 18);
+    const maxTokens = ethers.formatUnits(await crowdsale.maxTokens(), 18);
     setMaxTokens(maxTokens);
 
     const tokensSold = ethers.formatUnits(await crowdsale.tokensSold(), 18);
@@ -81,6 +84,12 @@ function App() {
             <strong>Current Price: </strong>
             {price} ETH
           </p>
+          <Buy
+            provider={provider}
+            price={price}
+            crowdsale={crowdsale}
+            setIsLoading={setIsLoading}
+          />
           <Progress tokensSold={tokensSold} maxTokens={maxTokens} />
         </>
       )}
