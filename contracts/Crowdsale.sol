@@ -4,26 +4,34 @@ pragma solidity 0.8.24;
 import "hardhat/console.sol";
 import "./Token.sol";
 
-// Crowdsale contract for managing the sale of ERC-20 tokens with whitelisting
+// Crowdsale contract for managing the sale of ERC-20 tokens with whitelisting and open/close functionality
 contract Crowdsale {
     address public owner;
     Token public token;
     uint256 public price;
     uint256 public maxTokens;
     uint256 public tokensSold;
+    uint256 public startTime; // Timestamp for when the crowdsale should start
     mapping(address => bool) public whitelisted;
 
-    // Events for logging buys, finalization actions, and whitelisting
+    // Events for logging buys, finalization actions, whitelisting, and status changes
     event Buy(uint256 amount, address buyer);
     event Finalize(uint256 tokensSold, uint256 ethRaised);
     event Whitelisted(address user);
+    event CrowdsaleOpened(uint256 time);
 
     // Set up the Crowdsale with a reference to the ERC-20 Token contract and initial sale parameters
-    constructor(Token _token, uint256 _price, uint256 _maxTokens) {
+    constructor(
+        Token _token,
+        uint256 _price,
+        uint256 _maxTokens,
+        uint256 _startTime
+    ) {
         owner = msg.sender;
         token = _token;
         price = _price;
         maxTokens = _maxTokens;
+        startTime = _startTime;
     }
 
     // Modifier to restrict calls to only the owner of the contract
@@ -38,14 +46,22 @@ contract Crowdsale {
         _;
     }
 
+    // Modifier to check if the crowdsale is open
+    modifier whenOpen() {
+        require(block.timestamp >= startTime, "Crowdsale is not open yet");
+        _;
+    }
+
     // Fallback function to handle ETH sent directly to the contract
-    receive() external payable onlyWhitelisted {
+    receive() external payable onlyWhitelisted whenOpen {
         uint256 amount = (msg.value / price) * 1e18; // Convert ETH to token amount
         buyTokens(amount);
     }
 
-    // Public function to buy tokens, restricted to whitelisted addresses
-    function buyTokens(uint256 _amount) public payable onlyWhitelisted {
+    // Public function to buy tokens, restricted to whitelisted addresses and only when open
+    function buyTokens(
+        uint256 _amount
+    ) public payable onlyWhitelisted whenOpen {
         require(
             msg.value == (_amount / 1e18) * price,
             "Ether value sent is not correct"
@@ -80,8 +96,14 @@ contract Crowdsale {
         emit Whitelisted(_user);
     }
 
+    // Function to set the start time for the crowdsale, callable only by the owner
+    function openCrowdsale(uint256 _startTime) public onlyOwner {
+        startTime = _startTime;
+        emit CrowdsaleOpened(_startTime);
+    }
+
     // Finalizes the crowdsale, can only be called by the owner
-    function finalize() public onlyOwner {
+    function finalize() public onlyOwner whenOpen {
         uint256 remainingTokens = token.balanceOf(address(this));
         if (remainingTokens > 0) {
             require(
