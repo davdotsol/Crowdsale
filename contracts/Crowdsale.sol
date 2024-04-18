@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import "hardhat/console.sol";
 import "./Token.sol";
 
-// Crowdsale contract for managing the sale of ERC-20 tokens with whitelisting and open/close functionality
+// Crowdsale contract for managing the sale of ERC-20 tokens with whitelisting, open/close functionality, and contribution limits
 contract Crowdsale {
     address public owner;
     Token public token;
@@ -12,6 +12,8 @@ contract Crowdsale {
     uint256 public maxTokens;
     uint256 public tokensSold;
     uint256 public startTime; // Timestamp for when the crowdsale should start
+    uint256 public minContribution; // Minimum number of tokens that must be purchased
+    uint256 public maxContribution; // Maximum number of tokens that can be purchased in a single transaction
     mapping(address => bool) public whitelisted;
 
     // Events for logging buys, finalization actions, whitelisting, and status changes
@@ -20,18 +22,22 @@ contract Crowdsale {
     event Whitelisted(address user);
     event CrowdsaleOpened(uint256 time);
 
-    // Set up the Crowdsale with a reference to the ERC-20 Token contract and initial sale parameters
+    // Constructor to set up the Crowdsale with initial sale parameters
     constructor(
         Token _token,
         uint256 _price,
         uint256 _maxTokens,
-        uint256 _startTime
+        uint256 _startTime,
+        uint256 _minContribution,
+        uint256 _maxContribution
     ) {
         owner = msg.sender;
         token = _token;
         price = _price;
         maxTokens = _maxTokens;
         startTime = _startTime;
+        minContribution = _minContribution;
+        maxContribution = _maxContribution;
     }
 
     // Modifier to restrict calls to only the owner of the contract
@@ -62,6 +68,10 @@ contract Crowdsale {
     function buyTokens(
         uint256 _amount
     ) public payable onlyWhitelisted whenOpen {
+        require(
+            _amount >= minContribution && _amount <= maxContribution,
+            "Amount of tokens bought is outside allowed contribution limits"
+        );
         require(
             msg.value == (_amount / 1e18) * price,
             "Ether value sent is not correct"
