@@ -5,7 +5,7 @@ import "hardhat/console.sol";
 import "./Token.sol";
 
 // Crowdsale contract for managing the sale of ERC-20 tokens with whitelisting, open/close functionality, and refund capabilities
-contract RefundableCrowdsale {
+contract Crowdsale {
     address public owner;
     Token public token;
     uint256 public price;
@@ -27,6 +27,7 @@ contract RefundableCrowdsale {
     event Finalize(uint256 tokensSold, uint256 ethRaised);
     event Whitelisted(address user);
     event CrowdsaleOpened(uint256 time);
+    event CrowdsaleClosed(uint256 time);
     event RefundIssued(address recipient, uint256 amount);
 
     // Constructor to set up the Crowdsale with initial sale parameters
@@ -100,7 +101,7 @@ contract RefundableCrowdsale {
         tokensSold += _amount;
 
         require(
-            tokensSold <= maxTokens,
+            tokensSold <= maxTokens * 10 ** 18,
             "Purchase would exceed max allowed tokens"
         );
         require(
@@ -132,6 +133,34 @@ contract RefundableCrowdsale {
         return address(this).balance >= fundingGoal;
     }
 
+    // Admin function to adjust the token price
+    function setPrice(uint256 _price) public onlyOwner {
+        price = _price;
+    }
+
+    // Function to add an address to the whitelist, callable only by the owner
+    function addToWhitelist(address _user) public onlyOwner {
+        whitelisted[_user] = true;
+        emit Whitelisted(_user);
+    }
+
+    // Function to set the start time for the crowdsale, callable only by the owner
+    function openCrowdsale(uint256 _startTime) public onlyOwner {
+        startTime = _startTime;
+        emit CrowdsaleOpened(_startTime);
+    }
+
+    // Allows the owner to manually close the crowdsale early
+    function closeCrowdsale() public onlyOwner {
+        require(!crowdsaleClosed, "Crowdsale is already closed");
+        require(block.timestamp >= startTime, "Crowdsale has not started yet");
+
+        crowdsaleClosed = true;
+        endTime = block.timestamp; // Update endTime to the current timestamp
+
+        emit CrowdsaleClosed(block.timestamp);
+    }
+
     // Finalizes the crowdsale, can only be called by the owner
     function finalize() public onlyOwner {
         require(!crowdsaleClosed, "Crowdsale already closed");
@@ -141,6 +170,13 @@ contract RefundableCrowdsale {
         fundingGoalReached = isFundingGoalReached();
 
         if (fundingGoalReached) {
+            uint256 remainingTokens = token.balanceOf(address(this));
+            if (remainingTokens > 0) {
+                require(
+                    token.transfer(owner, remainingTokens),
+                    "Failed to return remaining tokens"
+                );
+            }
             (bool sent, ) = owner.call{value: address(this).balance}("");
             require(sent, "Failed to send Ether to owner");
         }
