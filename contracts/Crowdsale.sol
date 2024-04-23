@@ -16,11 +16,11 @@ contract Crowdsale {
     uint256 public minContribution; // Minimum number of tokens that must be purchased
     uint256 public maxContribution; // Maximum number of tokens that can be purchased in a single transaction
     uint256 public fundingGoal; // Minimum amount of funds to be raised
-    bool public fundingGoalReached = false;
+    bool private fundingGoalReached = false;
     bool public crowdsaleClosed = false;
 
     mapping(address => uint256) public balances;
-    mapping(address => bool) public whitelisted;
+    mapping(address => bool) private whitelisted;
 
     // Events for logging buys, finalization actions, whitelisting, status changes, and refunds
     event Buy(uint256 amount, address indexed buyer);
@@ -50,6 +50,7 @@ contract Crowdsale {
         minContribution = _minContribution;
         maxContribution = _maxContribution;
         fundingGoal = _fundingGoal;
+        whitelisted[owner] = true;
     }
 
     // Modifier to restrict calls to only the owner of the contract
@@ -84,8 +85,13 @@ contract Crowdsale {
         uint256 _amount
     ) public payable onlyWhitelisted whenOpen {
         uint256 weiAmount = msg.value;
+        console.log("weiAmount", weiAmount);
+        console.log("_amount of tokens bought", _amount);
+        console.log("minContribution", minContribution);
+        console.log("maxContribution", maxContribution);
         require(
-            _amount >= minContribution && _amount <= maxContribution,
+            (_amount / 1e18) >= minContribution &&
+                (_amount / 1e18) <= maxContribution,
             "Amount of tokens bought is outside allowed contribution limits"
         );
         require(
@@ -100,6 +106,8 @@ contract Crowdsale {
         balances[msg.sender] += weiAmount;
         tokensSold += _amount;
 
+        console.log("tokensSold", tokensSold);
+
         require(
             tokensSold <= maxTokens * 10 ** 18,
             "Purchase would exceed max allowed tokens"
@@ -109,7 +117,9 @@ contract Crowdsale {
             "Failed to transfer tokens"
         );
 
-        emit Buy(_amount, msg.sender);
+        console.log("Emit buy event", (_amount / 1e18), msg.sender);
+
+        emit Buy((_amount / 1e18), msg.sender);
     }
 
     // Allow investors to claim refunds if the funding goal is not reached
@@ -126,6 +136,10 @@ contract Crowdsale {
         require(refundSuccessful, "Refund failed");
 
         emit RefundIssued(msg.sender, amount);
+    }
+
+    function isWhiteListed(address _account) public view returns (bool) {
+        return whitelisted[_account];
     }
 
     // Check if the funding goal was reached

@@ -7,12 +7,12 @@ const CrowdsaleModule = buildModule('CrowdsaleModule', (m) => {
   const totalSupply = m.getParameter('totalSupply', 1000000);
   const token = m.contract('Token', [name, symbol, totalSupply]);
   //Token _token, uint256 _price, uint256 _maxTokens
-  const price = m.getParameter('price', hre.ethers.utils.parseEther('1'));
+  const price = m.getParameter('price', hre.ethers.parseEther('1'));
   const maxTokens = m.getParameter('maxTokens', '1000000');
   const startTime = m.getParameter(
     'startTime',
-    Math.floor(Date.now() / 1000) + 3600
-  ); // 1 hour from now
+    Math.floor(Date.now() / 1000) - 3600
+  ); // 1 hour ago from now
   const endTime = m.getParameter(
     'endTime',
     Math.floor(Date.now() / 1000) + 86400
@@ -21,7 +21,7 @@ const CrowdsaleModule = buildModule('CrowdsaleModule', (m) => {
   const maxContribution = m.getParameter('maxContribution', '10000'); // Maximum contribution tokens
   const fundingGoal = m.getParameter(
     'fundingGoal',
-    hre.ethers.utils.parseEther('50')
+    hre.ethers.parseEther('50')
   ); // Funding goal in ether
 
   const crowdsale = m.contract('Crowdsale', [
